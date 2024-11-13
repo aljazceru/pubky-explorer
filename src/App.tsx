@@ -73,7 +73,7 @@ function App() {
       <div class="home-container">
         <div class="home">
           <p class="read-the-docs">
-            Click on the Pubky logo to visit the Github repository.
+            To learn more about pubky protocol visit <a href="https://pubky.tech">pubky.tech</a>
           </p>
         </div>
       </div>
