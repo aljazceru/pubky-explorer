@@ -1,7 +1,9 @@
-import { PubkyClient } from '@synonymdev/pubky'
+import { Client } from '@synonymdev/pubky'
 import { createStore } from 'solid-js/store';
 
-export const client = new PubkyClient();
+export const client = import.meta.env.VITE_TESTNET == "true" ?
+  Client.testnet() :
+  new Client();
 
 export const [store, setStore] = createStore<{
   explorer: Boolean,
@@ -73,6 +75,14 @@ export function loadMore() {
     // @ts-ignore
     setStore('list', Array.from(map.values()))
     setStore('dir', path)
+  })
+  .catch((e: String) => {
+    setStore('loading', false)
+    if (e === "error sending request") {
+      console.log(e, ": cannot reach homeserver or pk does not exist")
+    } else {
+      console.log("ERROR: ", e);
+    }
   });
 }
 
@@ -100,25 +110,30 @@ export function updateDir(path: string) {
   loadList()
 }
 
-export function downloadFile(link: string) {
+export async function downloadFile(link: string) {
   setStore("loading", true);
 
-  client.get(link).then(bytes => {
-    if (bytes) {
+  try {
+    const response: Response = await client.fetch(link);
 
-      const element = document.createElement('a');
-
-      const fileBlob = new Blob([bytes]);
-
-      element.href = URL.createObjectURL(fileBlob);
-      let parts = link.split('/')
-      element.download = parts[parts.length - 1];
-      document.body.appendChild(element); // Required for this to work in FireFox
-      element.click();
-
-      element.remove()
-      setStore("loading", false);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
     }
-  })
-}
 
+    const fileBlob: Blob = await response.blob();
+
+    const element = document.createElement('a');
+    element.href = URL.createObjectURL(fileBlob);
+    const parts = link.split('/');
+    element.download = parts[parts.length - 1];
+
+    document.body.appendChild(element);
+    element.click();
+    element.remove();
+  } catch (err: unknown) {
+    console.error("Error fetching file:", err);
+  }
+  finally {
+    setStore("loading", false);
+  }
+}
